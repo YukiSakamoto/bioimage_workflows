@@ -12,7 +12,7 @@
 import optuna
 import mlflow
 from optuna.integration.mlflow import MLflowCallback
-from user_functions import generation1, analysis1, evaluation1
+from user_functions import generation1, analysis1, evaluation1, analysis2
 from pathlib import Path
 from mlflow import MlflowClient
 from bioimage_workflow.utils import check_if_already_ran
@@ -24,7 +24,8 @@ from omegaconf import DictConfig, OmegaConf
 import hydra.utils
 
 mlflc = MLflowCallback(
-    tracking_uri="http://127.0.0.1:5000",
+    #tracking_uri="http://127.0.0.1:5000",
+    tracking_uri="http://127.0.0.1:8888",
     metric_name="sum of square x_mean and y_mean",
 )
 
@@ -73,7 +74,8 @@ def objective(cfg: DictConfig):
     # generation_params["exposure_time"] = exposure_time
     # generation_params["num_samples"] = num_samples
 
-    client = MlflowClient(tracking_uri="http://127.0.0.1:5000")
+    #client = MlflowClient(tracking_uri="http://127.0.0.1:5000")
+    client = MlflowClient(tracking_uri="http://127.0.0.1:8888")
     # print("--- cleint")
     # print(dir(client))
     # from mlflow.tracking.fluent import _get_experiment_id
@@ -143,6 +145,8 @@ def objective(cfg: DictConfig):
             # analysis_params["threshold"]=threshold
             
             a,b = analysis1([generation_output], analysis_output, cfg.experiment.analysis.params)
+            #_,_ = analysis2([generation_output], analysis_output, cfg.experiment.analysis.params)
+            _ = analysis2([generation_output], analysis_output, cfg.experiment.analysis.params)
             num_spots = b["num_spots"]
             # Set param
             mlflow.log_param("overlap", cfg.experiment.analysis.params.overlap)
