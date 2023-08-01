@@ -145,8 +145,7 @@ def objective(cfg: DictConfig):
             # analysis_params["threshold"]=threshold
             
             a,b = analysis1([generation_output], analysis_output, cfg.experiment.analysis.params)
-            #_,_ = analysis2([generation_output], analysis_output, cfg.experiment.analysis.params)
-            _ = analysis2([generation_output], analysis_output, cfg.experiment.analysis.params)
+            analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis_output, cfg.experiment.analysis.params)
             num_spots = b["num_spots"]
             # Set param
             mlflow.log_param("overlap", cfg.experiment.analysis.params.overlap)
@@ -156,6 +155,9 @@ def objective(cfg: DictConfig):
             mlflow.log_metric("num_spots", num_spots)
             # End analysis run
             # mlflow.end_run()
+            mlflow.log_metric("observation_count", analysis2_metrics["observation_count"])
+            mlflow.log_metric("observation_length", analysis2_metrics["observation_length"])
+            mlflow.log_artifacts(str(analysis_output))
     
         ## call evaluation
         # output

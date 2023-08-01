@@ -348,7 +348,7 @@ def analysis2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
     fig.write_image(str(artifacts / "histogram2.png"))
 
     #XXX: THERE
-    return {"artifacts": artifacts.absolute().as_uri()}
+    #return {"artifacts": artifacts.absolute().as_uri()}
 
     metrics = {'observation_count': len(lengths), 'observation_length': sum(lengths)}
     return artifacts.absolute().as_uri(), metrics
