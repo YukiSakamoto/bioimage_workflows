@@ -12,7 +12,7 @@
 import optuna
 import mlflow
 from optuna.integration.mlflow import MLflowCallback
-from user_functions import generation1, analysis1, evaluation1, analysis2
+from user_functions import generation1, analysis1, evaluation1, analysis2, evaluation2
 from pathlib import Path
 from mlflow import MlflowClient
 from bioimage_workflow.utils import check_if_already_ran
@@ -174,12 +174,16 @@ def objective(cfg: DictConfig):
         
         # evaluation_params["max_distance"] = max_distance
         c,d = evaluation1([generation_output,analysis_output], evaluation_output, cfg.experiment.evaluation.params)
+        eval2_a,eval2_metrics = evaluation2([generation_output,analysis_output], evaluation_output, cfg.experiment.evaluation.params)
 
         x_mean = d["x_mean"]
         y_mean = d["y_mean"]
 
         mlflow.log_metric("x_mean", x_mean)
         mlflow.log_metric("y_mean", y_mean)
+
+        transmat_rss = eval2_metrics["transmat_rss"]
+        mlflow.log_metric("transmat_rss", transmat_rss)
 
         # TODO: not hard code 600
         result = (x_mean)**2+(y_mean)**2

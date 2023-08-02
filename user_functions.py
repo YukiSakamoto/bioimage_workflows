@@ -350,5 +350,20 @@ def analysis2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
     #XXX: THERE
     #return {"artifacts": artifacts.absolute().as_uri()}
 
-    metrics = {'observation_count': len(lengths), 'observation_length': sum(lengths)}
+    numpy.save(str(artifacts / "transmat.npy"), P)
+    metrics = {'observation_count': len(lengths), 'observation_length': sum(lengths), "diffusivities": model.diffusivities_}
     return artifacts.absolute().as_uri(), metrics
+
+def evaluation2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> Tuple[str, dict]:
+    print(inputs)
+    print(params)
+
+    import numpy
+    max_distance = params["max_distance"]
+    transmat = params["transmat"]
+    analysis_artifacts = inputs[1]
+    exp_transmat = numpy.load( str(analysis_artifacts / 'transmat.npy'))
+    transmat_rss = numpy.sum(numpy.square(exp_transmat - transmat))
+    #diffusivities = analysis2_metrics["diffusivities"]
+    metrics = {"transmat_rss": transmat_rss }
+    return None, metrics
