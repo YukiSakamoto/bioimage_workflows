@@ -78,8 +78,8 @@ def generate_objective_function(generation_output_path):
 
 
 if __name__ == '__main__':
-    skip_generation = True
-    generation_output = Path('./test1/test1111')
+    skip_generation = False
+    generation_output = Path('./test2/abcd')
     if skip_generation != True:
         if not generation_output.exists():
             generation_output.mkdir(parents = True, exist_ok = True)
