@@ -2,7 +2,8 @@ import optuna
 import mlflow
 from pathlib import Path
 from optuna.integration.mlflow import MLflowCallback
-from user_functions import generation1, analysis1, evaluation1
+from user_functions import generation1, analysis1, evaluation1, analysis2
+import sys
 
 #==================================================
 # Parameters
@@ -11,11 +12,10 @@ generation_params = {
     "seed": 123,
     "interval": 0.033,
     "num_samples": 1,
-    "num_frames": 2,
+    "num_frames": 5,
     "exposure_time": 0.033,
     "Nm": [100, 100, 100],
-    "Dm": [0.222e-12, 0.032e-12, 0.008e-12],
-    "transmat": [
+    "Dm": [0.222e-12, 0.032e-12, 0.008e-12], "transmat": [
         [0.0, 0.5, 0.0],
         [0.5, 0.0, 0.2],
         [0.0, 1.0, 0.0]]
@@ -25,7 +25,9 @@ analysis_params = {
     "max_sigma": 4,
     "min_sigma": 1,
     "threshold": 50.0,
-    "overlap": 0.5
+    "overlap": 0.5,
+    "cutoff_distance": 2,
+    "interval": 0.033,
 }
 
 evaluation_params = {
@@ -41,7 +43,8 @@ trial_number=0
 
 mlflc = MLflowCallback(
     #tracking_uri="http://127.0.0.1:5000",
-    tracking_uri="http://127.0.0.1:7777",
+    #tracking_uri="http://127.0.0.1:7777",
+    tracking_uri="http://10.5.1.218:7777",
     metric_name="sum of square x_mean and y_mean",
 )
 
@@ -77,24 +80,48 @@ def generate_objective_function(generation_output_path):
     return _objective
 
 
+def generate_objective2_function(generation_output_path):
+    @mlflc.track_in_mlflow()
+    def _objective2(trial):
+        generation_output = generation_output_path  
+        mlflow.log_param("generation_output_path", generation_output)
+
+        #a, b = 
+        return result
+
+    return _objective2
+
+def objective2(generation_output_path):
+    generaion_output = generation_output_path
+    analysis_output=Path('./outputs_analysis2_run/'+str(trial_number))
+    analysis_output.mkdir(parents=True, exist_ok=True)
+    analysis_params_mod = analysis_params.copy()
+    analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis_output, analysis_params_mod )
+    return 
+
+
 if __name__ == '__main__':
     skip_generation = False
-    generation_output = Path('./test2/abcd')
-    if skip_generation != True:
+    generation_output = Path('./test_5frame/')
+    if generation_output.exists() and (generation_output / "config.yaml").exists():
+        print("Generation skip",file = sys.stderr )
+        pass
+    else:
         if not generation_output.exists():
             generation_output.mkdir(parents = True, exist_ok = True)
+        print("Generation start",file = sys.stderr )
         artifacts,metrics = generation1([], generation_output, generation_params)
+        print("Generation done",file = sys.stderr )
 
 
-    study = optuna.create_study(
-            storage="sqlite:///example2.10.1.db", 
-            study_name="test_x_y_mean_storage_7_2.10.1", 
-            load_if_exists=True, 
-            sampler=optuna.samplers.CmaEsSampler())
+    #study = optuna.create_study(
+    #        storage="sqlite:///example2.10.1.db", 
+    #        study_name="test_x_y_mean_storage_7_2.10.1", 
+    #        load_if_exists=True, 
+    #        sampler=optuna.samplers.CmaEsSampler())
 
-    objective = generate_objective_function(generation_output)
-    study.optimize(objective, n_trials=10, callbacks=[mlflc])
+    #objective = generate_objective_function(generation_output)
+    #study.optimize(objective, n_trials=20, callbacks=[mlflc])
 
-
-
+    objective2(generation_output)
 
