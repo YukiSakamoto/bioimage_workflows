@@ -61,7 +61,8 @@ def generate_objective_function(generation_output_path):
         analysis_params_mod["threshold"] = trial.suggest_float("threshold", 10, 100)
         analysis_params_mod["overlap"] = trial.suggest_float("overlap", 0.1, 1.0)
 
-        analysis_output=Path('./outputs_analysis_run/'+str(trial_number))
+        #analysis_output=Path('./outputs_analysis_run/'+str(trial_number))
+        analysis_output=Path('./outputs_analysis_run/'+str(trial.number))
         analysis_output.mkdir(parents=True, exist_ok=True)
         a,b = analysis1([generation_output], analysis_output, analysis_params_mod)
 
@@ -91,9 +92,9 @@ def generate_objective2_function(generation_output_path):
 
     return _objective2
 
-def objective2(generation_output_path):
+def objective2(generation_output_path, best_analysis1_trial_number ):
     generaion_output = generation_output_path
-    analysis_output=Path('./outputs_analysis2_run/'+str(trial_number))
+    analysis_output=Path('./outputs_analysis_run/'+str(best_analysis1_trial_number))
     analysis_output.mkdir(parents=True, exist_ok=True)
     analysis_params_mod = analysis_params.copy()
     analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis_output, analysis_params_mod )
@@ -121,7 +122,11 @@ if __name__ == '__main__':
     #        sampler=optuna.samplers.CmaEsSampler())
 
     #objective = generate_objective_function(generation_output)
-    #study.optimize(objective, n_trials=20, callbacks=[mlflc])
+    #study.optimize(objective, n_trials=2, callbacks=[mlflc])
 
-    objective2(generation_output)
+    #analysis1_best_trial_number = study.best_trial.number
+    analysis1_best_trial_number = 33
+    print(analysis1_best_trial_number)
+
+    objective2(generation_output, analysis1_best_trial_number)
 
