@@ -232,7 +232,7 @@ def evaluation1(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) ->
         }
     return artifacts.absolute().as_uri(), metrics
 
-def analysis2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> Tuple[str, dict]:
+def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLike, params: dict) -> Tuple[str, dict]:
     assert len(inputs) == 1
 
     interval = params['interval']
@@ -272,7 +272,7 @@ def analysis2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
     observation_vec = []
     lengths = []
     ndim = 2
-    for spots_npy_path in sorted(artifacts.glob('spots*.npy')):  #XXX: Expect to be in the artifacts
+    for spots_npy_path in sorted(spots_path.glob('spots*.npy')):  
         mobj = re.match('spots(\d+).npy', spots_npy_path.name)
         assert mobj is not None
         i = int(mobj.group(1))

@@ -2,7 +2,7 @@ import optuna
 import mlflow
 from pathlib import Path
 from optuna.integration.mlflow import MLflowCallback
-from user_functions import generation1, analysis1, evaluation1, analysis2
+from user_functions import generation1, analysis1, evaluation1, analysis2, evaluation2
 import sys
 
 #==================================================
@@ -31,7 +31,12 @@ analysis_params = {
 }
 
 evaluation_params = {
-    "max_distance": 5.0
+    "max_distance": 5.0,
+    "transmat": [
+        [0.0, 0.5, 0.0],
+        [0.5, 0.0, 0.2],
+        [0.0, 1.0, 0.0]
+    ]
 }
 
 exposure_time=0
@@ -81,23 +86,40 @@ def generate_objective_function(generation_output_path):
     return _objective
 
 
-def generate_objective2_function(generation_output_path):
+def generate_objective2_function(generation_output_path, analysis1_output_path):
     @mlflc.track_in_mlflow()
     def _objective2(trial):
         generation_output = generation_output_path  
+        analysis2_output=Path('./outputs_analysis2_run/'+str(trial.number))
+        analysis2_output.mkdir(parents=True, exist_ok=True)
+        analysis_params_mod = analysis_params.copy()
+        analysis_params_mod["cutoff_distance"] = trial.suggest_float("cutoff_distance", 1, 10)
+        analysis_params_mod["interval"] = trial.suggest_float("interval", 0, 0.15)
+        analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis1_output_path, analysis2_output, analysis_params_mod )
         mlflow.log_param("generation_output_path", generation_output)
 
-        #a, b = 
+        evaluation_output=Path('./outputs_evaluation_run/'+str(1))
+        evaluation_output.mkdir(parents=True, exist_ok=True)
+        _, metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
+        result = metrics["transmat_rss"]
+
         return result
 
     return _objective2
 
 def objective2(generation_output_path, best_analysis1_trial_number ):
     generaion_output = generation_output_path
-    analysis_output=Path('./outputs_analysis_run/'+str(best_analysis1_trial_number))
-    analysis_output.mkdir(parents=True, exist_ok=True)
+    analysis1_output=Path('./outputs_analysis_run/'+str(best_analysis1_trial_number))
+    analysis2_output=Path('./outputs_analysis2_run/'+str(1))
+    analysis2_output.mkdir(parents=True, exist_ok=True)
     analysis_params_mod = analysis_params.copy()
-    analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis_output, analysis_params_mod )
+    analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis1_output, analysis2_output, analysis_params_mod )
+    print(analysis2_artifacts)
+    print(analysis2_metrics)
+
+    evaluation_output=Path('./outputs_evaluation_run/'+str(1))
+    evaluation_output.mkdir(parents=True, exist_ok=True)
+    evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
     return 
 
 
@@ -128,5 +150,13 @@ if __name__ == '__main__':
     analysis1_best_trial_number = 33
     print(analysis1_best_trial_number)
 
-    objective2(generation_output, analysis1_best_trial_number)
+    #objective2(generation_output, analysis1_best_trial_number)
+    study2 = optuna.create_study(
+            storage="sqlite:///example2.10.1.db", 
+            study_name="test_x_y_mean_storage2_7_2.10.1", 
+            load_if_exists=True, 
+            sampler=optuna.samplers.CmaEsSampler())
+
+    objective2 = generate_objective2_function(generation_output, Path('./outputs_analysis_run/'+str(analysis1_best_trial_number)) )
+    study2.optimize(objective2, n_trials=2, callbacks=[mlflc])
 
