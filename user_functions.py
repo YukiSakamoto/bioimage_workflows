@@ -351,7 +351,12 @@ def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLi
     #return {"artifacts": artifacts.absolute().as_uri()}
 
     numpy.save(str(artifacts / "transmat.npy"), P)
-    metrics = {'observation_count': len(lengths), 'observation_length': sum(lengths), "diffusivities": model.diffusivities_}
+    metrics = {
+            'observation_count': len(lengths), 
+            'observation_length': sum(lengths), 
+            "diffusivities": model.diffusivities_,
+            "startprob" : model.startprob_,
+    }
     return artifacts.absolute().as_uri(), metrics
 
 def evaluation2(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> Tuple[str, dict]:
