@@ -4,6 +4,7 @@ from pathlib import Path
 from optuna.integration.mlflow import MLflowCallback
 from user_functions import generation1, analysis1, evaluation1, analysis2, evaluation2
 import sys
+import numpy as np
 
 #==================================================
 # Parameters
@@ -15,7 +16,8 @@ generation_params = {
     "num_frames": 5,
     "exposure_time": 0.033,
     "Nm": [100, 100, 100],
-    "Dm": [0.222e-12, 0.032e-12, 0.008e-12], "transmat": [
+    "Dm": [0.222e-12, 0.032e-12, 0.008e-12], 
+    "transmat": [
         [0.0, 0.5, 0.0],
         [0.5, 0.0, 0.2],
         [0.0, 1.0, 0.0]]
@@ -97,7 +99,7 @@ def generate_objective_function(generation_output_path):
     return _objective
 
 
-def generate_objective2_function(generation_output_path, analysis1_output_path, eval_weight = {"transmat_rss": 0.5, "startprob": 0.5, "diffusivities": 0.0}):
+def generate_objective2_function(generation_output_path, analysis1_output_path, eval_weight = {"transmat_rss": 0.5, "startprob": 0.5, "D": 0.0}):
     @mlflc.track_in_mlflow()
     def _objective2(trial):
         generation_output = generation_output_path  
@@ -115,15 +117,22 @@ def generate_objective2_function(generation_output_path, analysis1_output_path, 
         evaluation_output.mkdir(parents=True, exist_ok=True)
         _, metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
         #result = metrics["transmat_rss"]
-        startprob = analysis2_metrics["startprob"]
-        diffusivities = analysis2_metrics["diffusivities"]
+
+        # calculate the difference of startprob
+        start_ratio = np.array(generation_params["Nm"]) / sum(generation_params["Nm"])
+        startprob_rss = np.sum(np.square(analysis2_metrics["startprob"] - start_ratio) )
+        analysis_Dm = np.sort(np.array(list(map(lambda x: x[0], analysis2_metrics["D"]) ) ))
+        generation_Dm = np.sort(np.array(generation_params["Dm"]))
+        dm_rss = np.sum(np.square(analysis_Dm - generation_Dm) ) 
+
         objective_parameters = {
-            "startprob": startprob,
-            "diffusivities": diffusivities,
+            "startprob": startprob_rss,
+            "D": dm_rss,
             "transmat_rss": metrics["transmat_rss"]
         }
         result = 0.
         for k in eval_weight.keys():
+            print("{} : {} : {}".format(k, eval_weight[k], objective_parameters[k]))
             result += objective_parameters[k] * eval_weight[k]
 
         return result
@@ -167,7 +176,7 @@ if __name__ == '__main__':
             sampler=optuna.samplers.CmaEsSampler())
 
     objective = generate_objective_function(generation_output)
-    study.optimize(objective, n_trials=4, callbacks=[mlflc])
+    study.optimize(objective, n_trials=2, callbacks=[mlflc])
 
     analysis1_best_trial_number = study.best_trial.number
     print("#==================================================#")
@@ -175,6 +184,8 @@ if __name__ == '__main__':
     print(analysis1_best_trial_number)
     print(study.best_params)
     print("#==================================================#")
+    fig = optuna.visualization.plot_optimization_history(study)
+    fig.write_html('study.html')
 
     #objective2(generation_output, analysis1_best_trial_number)
     study2 = optuna.create_study(
@@ -186,7 +197,9 @@ if __name__ == '__main__':
     objective2 = generate_objective2_function(
             generation_output, 
             Path('./outputs_analysis_run/'+str(analysis1_best_trial_number)), 
-            {"transmat_rss": 0.5, "startprob": 0.5, "diffusivities": 0.0}
+            {"transmat_rss": 0.5, "startprob": 0.5, "D": 0.2}
     )
-    study2.optimize(objective2, n_trials=4, callbacks=[mlflc])
+    study2.optimize(objective2, n_trials=20, callbacks=[mlflc])
+    fig = optuna.visualization.plot_optimization_history(study2)
+    fig.write_html('study2.html')
 

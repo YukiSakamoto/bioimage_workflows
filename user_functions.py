@@ -319,7 +319,7 @@ def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLi
     model.fit(observation_vec, lengths)
     
     print("diffusivities=\n", model.diffusivities_)
-    print("D=\n", pixel_length ** 2 * model.diffusivities_ / interval / 1e-12)
+    print("D=\n", pixel_length ** 2 * model.diffusivities_ / interval )
 
     print("intensity_means=", model.intensity_means_)
     print("intensity_vars=", model.intensity_vars_)
@@ -355,6 +355,7 @@ def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLi
             'observation_count': len(lengths), 
             'observation_length': sum(lengths), 
             "diffusivities": model.diffusivities_,
+            "D": pixel_length ** 2 * model.diffusivities_ / interval / 1e-12,
             "startprob" : model.startprob_,
     }
     return artifacts.absolute().as_uri(), metrics
