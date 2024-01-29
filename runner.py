@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import shutil
 import argparse
+import json
 
 storage="sqlite:///example2.10.1.db" 
 study_name = "parameter_optimization"
@@ -71,7 +72,7 @@ mlflc = MLflowCallback(
     metric_name="weighted_objective_value",
 )
 
-def generate_objective_function(generation_output_path, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
+def generate_objective_function(generation_output_path, generation_params, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
     # This function returns the closure that hold the generation_output_path.
 
     @mlflc.track_in_mlflow()
@@ -79,6 +80,7 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
         print("enter objective")
         generation_output = generation_output_path  
         mlflow.log_param("generation_output_path", generation_output)   #XXX should be use log_artifact ???
+        mlflow.log_param("generation_params", generation_params)
 
         # The parameters get from trial.suggest_XXX(XXX=float, int, ...) are automatically changed to optimize.
         analysis_params_mod = analysis_params.copy()
@@ -88,25 +90,29 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
         analysis_params_mod["min_sigma"] = trial.suggest_float("min_sigma", 0, 2)
         analysis_params_mod["cutoff_distance"] = trial.suggest_float("cutoff_distance", 1, 10)  #XXX obj2
 
-        #analysis1_output=Path('./outputs_analysis_run/'+str(trial.number) + '/analysis1/')
+        all_log_dict = dict()
+        all_log_dict["generation_params"] = generation_params
+
         analysis1_output = artifact_dir / str(trial.number) / 'analysis1/'
         analysis1_output.mkdir(parents=True, exist_ok=True)
-        a, b = analysis1([generation_output], analysis1_output, analysis_params_mod)
+        a, analysis1_metrics = analysis1([generation_output], analysis1_output, analysis_params_mod)
         print("{}-analysis1 done".format(trial.number))
+        all_log_dict["analysis1_metrics"] = analysis1_metrics
 
         #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation1/')
         evaluation_output = artifact_dir / str(trial.number) / 'evaluation1/'
         evaluation_output.mkdir(parents=True, exist_ok=True)
 
-        c,d = evaluation1([generation_output,analysis1_output], evaluation_output, evaluation_params)
+        c, evaluation1_metrics = evaluation1([generation_output,analysis1_output], evaluation_output, evaluation_params)
         print("{}-evaluation1 done".format(trial.number))
 
-        x_mean = d["x_mean"]
-        y_mean = d["y_mean"]
+        x_mean = evaluation1_metrics["x_mean"]
+        y_mean = evaluation1_metrics["y_mean"]
         mean_norm2 = (x_mean)**2+(y_mean)**2
         mlflow.log_metric("x_mean", x_mean)
         mlflow.log_metric("y_mean", y_mean)
         mlflow.log_metric("mean_norm2", mean_norm2)
+        all_log_dict["evaluation1_metrics"] = evaluation1_metrics
 
         # analysis2
         #analysis2_output = Path('./outputs_analysis_run/'+str(trial.number) + '/analysis2/')
@@ -114,12 +120,15 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
         analysis2_output.mkdir(parents=True, exist_ok=True)
         analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis1_output, analysis2_output, analysis_params_mod )
         print("{}-analysis2 done".format(trial.number))
+        #print(analysis2_metrics)
+        #all_log_dict["analysis2_metrics"] = analysis2_metrics
 
         #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation2/')
         evaluation2_output = artifact_dir / str(trial.number) / 'evaluation2/'
         evaluation2_output.mkdir(parents=True, exist_ok=True)
         _, evaluation2_metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
         print("{}-evaluation2 done".format(trial.number))
+        #all_log_dict["evaluation2_metrics"] = evaluation2_metrics
 
         start_ratio = np.array(generation_params["Nm"]) / sum(generation_params["Nm"])
         startprob_rss = np.sum(np.square(analysis2_metrics["startprob"] - start_ratio) )
@@ -138,6 +147,13 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
             print("{} : {} : {}".format(k, eval_weight[k], objective_parameters[k]))
             result += objective_parameters[k] * eval_weight[k]
         mlflow.log_artifacts(artifact_dir / str(trial.number))
+
+        jsonpath = artifact_dir / str(trial.number) / 'metrics.json'
+        #mlflow.log_table(all_log_dict, artifact_dir / str(trial.number) / 'metrics.json')
+        with open(jsonpath, "w") as f:
+            json.dump(all_log_dict, f)
+        mlflow.log_artifact(jsonpath)
+
         return result
 
     return _objective
@@ -177,7 +193,7 @@ if __name__ == '__main__':
     #========================================
     # Exec experiment
     #========================================
-    objective = generate_objective_function(generation_output)
+    objective = generate_objective_function(generation_output, generation_params)
     study.optimize(objective, n_trials = nsteps, callbacks=[mlflc])
 
     analysis_best_trial_number = study.best_trial.number
