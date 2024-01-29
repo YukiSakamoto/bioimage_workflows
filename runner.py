@@ -68,7 +68,7 @@ mlflc = MLflowCallback(
     #tracking_uri="http://127.0.0.1:5000",
     #tracking_uri="http://127.0.0.1:7777",
     #tracking_uri="http://10.5.1.218:7777",
-    metric_name="sum of square x_mean and y_mean",
+    metric_name="weighted_objective_value",
 )
 
 def generate_objective_function(generation_output_path, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
@@ -118,7 +118,7 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
         #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation2/')
         evaluation2_output = artifact_dir / str(trial.number) / 'evaluation2/'
         evaluation2_output.mkdir(parents=True, exist_ok=True)
-        _, metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
+        _, evaluation2_metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
         print("{}-evaluation2 done".format(trial.number))
 
         start_ratio = np.array(generation_params["Nm"]) / sum(generation_params["Nm"])
@@ -126,11 +126,12 @@ def generate_objective_function(generation_output_path, eval_weight = {"transmat
         analysis_Dm = np.sort(np.array(list(map(lambda x: x[0], analysis2_metrics["D"]) ) ))
         generation_Dm = np.sort(np.array(generation_params["Dm"]))
         dm_rss = np.sum(np.square(analysis_Dm - generation_Dm) ) 
+        transmat_rss = evaluation2_metrics["transmat_rss"]
 
         objective_parameters = {
             "startprob": startprob_rss,
             "D": dm_rss,
-            "transmat_rss": metrics["transmat_rss"]
+            "transmat_rss": transmat_rss
         }
         result = 0.
         for k in eval_weight.keys():
