@@ -107,14 +107,12 @@ def generate_objective_function(generation_output_path, generation_params, eval_
         analysis1_output = artifact_dir / str(trial.number) / 'analysis1/'
         analysis1_output.mkdir(parents=True, exist_ok=True)
         a, analysis1_metrics = analysis1([generation_output], analysis1_output, analysis_params_mod)
-        #print("{}-analysis1 done".format(trial.number))
         all_log_dict["analysis1_metrics"] = analysis1_metrics
 
         #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation1/')
         evaluation_output = artifact_dir / str(trial.number) / 'evaluation1/'
         evaluation_output.mkdir(parents=True, exist_ok=True)
         c, evaluation1_metrics = evaluation1([generation_output,analysis1_output], evaluation_output, evaluation_params)
-        #print("{}-evaluation1 done".format(trial.number))
 
         x_mean = evaluation1_metrics["x_mean"]
         y_mean = evaluation1_metrics["y_mean"]
@@ -128,16 +126,19 @@ def generate_objective_function(generation_output_path, generation_params, eval_
         analysis2_output = artifact_dir / str(trial.number) / 'analysis2/'
         analysis2_output.mkdir(parents=True, exist_ok=True)
         analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis1_output, analysis2_output, analysis_params_mod )
-        #print("{}-analysis2 done".format(trial.number))
-        #print(analysis2_metrics)
         all_log_dict["analysis2_metrics"] = analysis2_metrics
 
         #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation2/')
         evaluation2_output = artifact_dir / str(trial.number) / 'evaluation2/'
         evaluation2_output.mkdir(parents=True, exist_ok=True)
         _, evaluation2_metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
-        #print("{}-evaluation2 done".format(trial.number))
         all_log_dict["evaluation2_metrics"] = evaluation2_metrics
+
+        # log all the metrics
+        jsonpath = artifact_dir / str(trial.number) / 'metrics.json'
+        with open(jsonpath, "w") as f:
+            json.dump(all_log_dict, f, default=default)
+        mlflow.log_artifact(jsonpath)
 
         start_ratio = np.array(generation_params["Nm"]) / sum(generation_params["Nm"])
         startprob_rss = np.sum(np.square(analysis2_metrics["startprob"] - start_ratio) )
@@ -151,18 +152,16 @@ def generate_objective_function(generation_output_path, generation_params, eval_
             "D": dm_rss,
             "transmat_rss": transmat_rss
         }
-        result = 0.
-        for k in eval_weight.keys():
-            print("{} : {} : {}".format(k, eval_weight[k], objective_parameters[k]))
-            result += objective_parameters[k] * eval_weight[k]
-        mlflow.log_artifacts(artifact_dir / str(trial.number))
+        #result = 0.
+        #for k in eval_weight.keys():
+        #    print("{} : {} : {}".format(k, eval_weight[k], objective_parameters[k]))
+        #    result += objective_parameters[k] * eval_weight[k]
+        #mlflow.log_artifacts(artifact_dir / str(trial.number))
 
-        jsonpath = artifact_dir / str(trial.number) / 'metrics.json'
-        #mlflow.log_table(all_log_dict, artifact_dir / str(trial.number) / 'metrics.json')
-        with open(jsonpath, "w") as f:
-            json.dump(all_log_dict, f, default=default)
-        mlflow.log_artifact(jsonpath)
-
+        r = all_log_dict["evaluation1_metrics"]["r"]
+        miss_count = all_log_dict["evaluation1_metrics"]["miss_count"]
+        missing = all_log_dict["evaluation1_metrics"]["missing"]
+        result = abs(1-r) + miss_count + missing
         return result
 
     return _objective
