@@ -11,8 +11,9 @@ import json
 
 storage="sqlite:///example2.10.1.db" 
 study_name = "parameter_optimization"
+study_name2 = "parameter_optimization2"
 image_dir = Path("./test_image")
-artifact_dir = Path("./outputs/")
+#artifact_dir = Path("./outputs/")
 
 #==================================================
 # Parameters
@@ -69,7 +70,11 @@ mlflc = MLflowCallback(
     #tracking_uri="http://127.0.0.1:5000",
     #tracking_uri="http://127.0.0.1:7777",
     #tracking_uri="http://10.5.1.218:7777",
-    metric_name="weighted_objective_value",
+    metric_name="analysis1_and_2",
+)
+
+mlflc2 = MLflowCallback(
+    metric_name="analysis1",
 )
 
 # This function is for the serialization of numpy object to json.
@@ -83,7 +88,7 @@ def default(o):
         return list(o)
     raise TypeError(repr(o) + " is not JSON serializable")
 
-def generate_objective_function(generation_output_path, generation_params, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
+def generate_objective_function(generation_output_path, generation_params, artifact_dir, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
     # This function returns the closure that hold the generation_output_path.
 
     @mlflc.track_in_mlflow()
@@ -109,7 +114,6 @@ def generate_objective_function(generation_output_path, generation_params, eval_
         a, analysis1_metrics = analysis1([generation_output], analysis1_output, analysis_params_mod)
         all_log_dict["analysis1_metrics"] = analysis1_metrics
 
-        #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation1/')
         evaluation_output = artifact_dir / str(trial.number) / 'evaluation1/'
         evaluation_output.mkdir(parents=True, exist_ok=True)
         c, evaluation1_metrics = evaluation1([generation_output,analysis1_output], evaluation_output, evaluation_params)
@@ -128,7 +132,6 @@ def generate_objective_function(generation_output_path, generation_params, eval_
         analysis2_artifacts, analysis2_metrics = analysis2([generation_output], analysis1_output, analysis2_output, analysis_params_mod )
         all_log_dict["analysis2_metrics"] = analysis2_metrics
 
-        #evaluation_output=Path('./outputs_analysis_run/'+str(trial_number) + '/evaluation2/')
         evaluation2_output = artifact_dir / str(trial.number) / 'evaluation2/'
         evaluation2_output.mkdir(parents=True, exist_ok=True)
         _, evaluation2_metrics = evaluation2([generation_output, analysis2_output], evaluation_output, evaluation_params)
@@ -166,9 +169,62 @@ def generate_objective_function(generation_output_path, generation_params, eval_
 
     return _objective
 
+def generate_objective_function2(generation_output_path, generation_params, artifact_dir, eval_weight = {"transmat_rss": 0.5, "startprob": 0.25, "D": 0.25}):
+    # This function returns the closure that hold the generation_output_path.
+
+    @mlflc2.track_in_mlflow()
+    def _objective(trial):
+        print("enter objective")
+        generation_output = generation_output_path  
+        mlflow.log_param("generation_output_path", generation_output)   #XXX should be use log_artifact ???
+        mlflow.log_param("generation_params", generation_params)
+
+        # The parameters get from trial.suggest_XXX(XXX=float, int, ...) are automatically changed to optimize.
+        analysis_params_mod = analysis_params.copy()
+        analysis_params_mod["threshold"] = trial.suggest_float("threshold", 10, 100)
+        analysis_params_mod["overlap"] = trial.suggest_float("overlap", 0.1, 1.0)
+        analysis_params_mod["max_sigma"] = trial.suggest_float("max_sigma", 4, 10)
+        analysis_params_mod["min_sigma"] = trial.suggest_float("min_sigma", 0, 2)
+        #analysis_params_mod["cutoff_distance"] = trial.suggest_float("cutoff_distance", 1, 10)  #XXX obj2
+
+        all_log_dict = dict()
+        all_log_dict["generation_params"] = generation_params
+
+        analysis1_output = artifact_dir / str(trial.number) / 'analysis1/'
+        analysis1_output.mkdir(parents=True, exist_ok=True)
+        a, analysis1_metrics = analysis1([generation_output], analysis1_output, analysis_params_mod)
+        all_log_dict["analysis1_metrics"] = analysis1_metrics
+
+        evaluation_output = artifact_dir / str(trial.number) / 'evaluation1/'
+        evaluation_output.mkdir(parents=True, exist_ok=True)
+        c, evaluation1_metrics = evaluation1([generation_output,analysis1_output], evaluation_output, evaluation_params)
+
+        x_mean = evaluation1_metrics["x_mean"]
+        y_mean = evaluation1_metrics["y_mean"]
+        mean_norm2 = (x_mean)**2+(y_mean)**2
+        mlflow.log_metric("x_mean", x_mean)
+        mlflow.log_metric("y_mean", y_mean)
+        mlflow.log_metric("mean_norm2", mean_norm2)
+        all_log_dict["evaluation1_metrics"] = evaluation1_metrics
+
+        # log all the metrics
+        jsonpath = artifact_dir / str(trial.number) / 'metrics.json'
+        with open(jsonpath, "w") as f:
+            json.dump(all_log_dict, f, default=default)
+        mlflow.log_artifact(jsonpath)
+
+        r = all_log_dict["evaluation1_metrics"]["r"]
+        miss_count = all_log_dict["evaluation1_metrics"]["miss_count"]
+        missing = all_log_dict["evaluation1_metrics"]["missing"]
+        result = abs(1-r) + miss_count + missing
+        return result
+
+    return _objective
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', type =int, default = 10, help = 'the number of the optimization steps')
+    parser.add_argument('-n1', type =int, default = 10, help = 'the number of the optimization steps')
+    parser.add_argument('-n2', type =int, default = 10, help = 'the number of the optimization steps')
     parser.add_argument('--clear', action = "store_true", default = False, help = 'Clear the previous optimization logs')
 
     args = parser.parse_args()
@@ -179,7 +235,8 @@ if __name__ == '__main__':
         shutil.rmtree("mlruns")
         exit()
 
-    nsteps = args.n
+    nsteps1 = args.n1
+    nsteps2 = args.n2
     #========================================
     # Generation Image
     #========================================
@@ -193,24 +250,39 @@ if __name__ == '__main__':
         artifacts,metrics = generation1([], generation_output, generation_params)
         print("Generation done",file = sys.stderr )
 
+
+    #========================================
+    # Optimize with analysis1 + analysis2
+    #========================================
     study = optuna.create_study(
-            storage = storage, 
-            study_name = study_name, 
+            storage = storage,  study_name = study_name, 
             load_if_exists=True, sampler=optuna.samplers.CmaEsSampler())
 
-    #========================================
-    # Exec experiment
-    #========================================
-    objective = generate_objective_function(generation_output, generation_params)
-    study.optimize(objective, n_trials = nsteps, callbacks=[mlflc])
+    artifact_dir = Path("./outputs/")
+    objective = generate_objective_function(generation_output, generation_params, artifact_dir)
+    study.optimize(objective, n_trials = nsteps1, callbacks=[mlflc])
 
     analysis_best_trial_number = study.best_trial.number
-    print("analysis1 optimization done. {} is the best trial number".format(analysis_best_trial_number))
+    print("analysis1+2 optimization done. {} is the best trial number".format(analysis_best_trial_number))
+    print(study.best_params)
 
-    #========================================
-    # Exec experiment
-    #========================================
     fig = optuna.visualization.plot_optimization_history(study)
     fig.write_html('study.html')
+
+    #========================================
+    # Optimize with ONLY analysis1 
+    #========================================
+    study2 = optuna.create_study(
+            storage = storage, study_name = study_name2, 
+            load_if_exists=True, sampler=optuna.samplers.CmaEsSampler())
+    artifact_dir2 = Path("./outputs2/")
+    objective2 = generate_objective_function2(generation_output, generation_params, artifact_dir2)
+    study2.optimize(objective2, n_trials = nsteps2, callbacks=[mlflc2])
+    analysis_best_trial_number = study2.best_trial.number
+    print("analysis1 optimization done. {} is the best trial number".format(analysis_best_trial_number))
+    print(study2.best_params)
+
+    fig = optuna.visualization.plot_optimization_history(study2)
+    fig.write_html('study2.html')
 
 
