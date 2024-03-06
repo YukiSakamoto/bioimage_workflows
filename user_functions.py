@@ -360,6 +360,7 @@ def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLi
             "diffusivities": model.diffusivities_,
             "D": pixel_length ** 2 * model.diffusivities_ / interval / 1e-12,
             "startprob" : model.startprob_,
+            "state_transition_matrix": k,
     }
     return artifacts.absolute().as_uri(), metrics
 
