@@ -86,6 +86,7 @@ def analysis1(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
     warnings.simplefilter('ignore', RuntimeWarning)
 
     num_spots = 0
+    num_spots_each_frame = []
     for image_npy_path in sorted(generation_artifacts.glob('images*.npy')):
         mobj = re.match('images(\d+).npy', image_npy_path.name)
         assert mobj is not None
@@ -96,8 +97,10 @@ def analysis1(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
                 img.as_array(),
                 min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap)
             for img in imgs]
-
         timepoints = numpy.arange(0, len(spots), dtype=numpy.float64)
+
+        for index in range(len(spots)):
+            num_spots_each_frame.append( len(spots[index]) )
 
         all_spots = []
         for t, data in zip(timepoints, spots):
@@ -114,7 +117,7 @@ def analysis1(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> T
         num_spots += len(all_spots)
         # print("{} spots are detected in {} frames.".format(num_spots, len(imgs)))
 
-    metrics = {"num_spots": num_spots}  #XXX: optional
+    metrics = {"num_spots": num_spots, "num_spots_each_frame": num_spots_each_frame }  #XXX: optional
     return artifacts.absolute().as_uri(), metrics
 
 def evaluation1(inputs: Tuple[PathLike, ...], output: PathLike, params: dict) -> Tuple[str, dict]:

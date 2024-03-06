@@ -286,3 +286,22 @@ if __name__ == '__main__':
     fig.write_html('study2.html')
 
 
+    generation_params_merge = generation_params.copy()
+    metrics_filename = artifact_dir / "{}".format(study.best_trial.number) / "metrics.json"
+    with open(metrics_filename, 'r') as f:
+        metrics = json.load(f)
+
+    generation_params_merge["transmat"] = np.load(artifact_dir / "{}".format(study.best_trial.number) / "analysis2/transmat.npy" )
+    print(generation_params_merge["transmat"])
+    generation_params_merge["Dm"] = metrics["analysis2_metrics"]["D"]
+    nm_initial = metrics["analysis1_metrics"]["num_spots_each_frame"][0]
+    startprob = metrics["analysis2_metrics"]["startprob"]
+    for i in range(len(startprob)):
+        generation_params_merge["Nm"][i] = nm_initial * startprob[i]
+
+    print("Re-Generate with optimized parameter with {}".format(generation_params_merge))
+    generation_output2 = Path("./re-generation/")
+    if not generation_output2.exists():
+        generation_output2.mkdir(parents = True, exist_ok = True)
+    artifacts, metrics = generation1([], generation_output2, generation_params_merge)
+
