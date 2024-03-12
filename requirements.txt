@@ -1,5 +1,5 @@
 mlflow
-hmmlearn
+hmmlearn==0.2.6
 hydra-core
 scikit-image
 plotly
