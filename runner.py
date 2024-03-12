@@ -8,6 +8,7 @@ import numpy as np
 import shutil
 import argparse
 import json
+import itertools
 
 storage="sqlite:///example2.10.1.db" 
 study_name = "parameter_optimization"
@@ -25,7 +26,7 @@ generation_params = {
     "num_frames": 10,
     "exposure_time": 0.033,
     "Nm": [100, 100, 100],
-    "Dm": [0.222e-12, 0.032e-12, 0.008e-12], 
+    "Dm": [0.222e-12, 0.032e-12, 0.008e-12],    # m^2 / sec
     "transmat": [
         [0.0, 0.5, 0.0],
         [0.5, 0.0, 0.2],
@@ -286,6 +287,7 @@ if __name__ == '__main__':
     fig.write_html('study2.html')
 
 
+    print("Re-generate: use trial #{} parameters.".format(study.best_trial.number))
     generation_params_merge = generation_params.copy()
     metrics_filename = artifact_dir / "{}".format(study.best_trial.number) / "metrics.json"
     with open(metrics_filename, 'r') as f:
@@ -294,13 +296,20 @@ if __name__ == '__main__':
     #generation_params_merge["transmat"] = np.load(artifact_dir / "{}".format(study.best_trial.number) / "analysis2/transmat.npy" )
     generation_params_merge["transmat"] = metrics["analysis2_metrics"]["state_transition_matrix"]
     print(generation_params_merge["transmat"])
-    generation_params_merge["Dm"] = metrics["analysis2_metrics"]["D"]
+    diffusivities_flatten = list(itertools.chain.from_iterable(metrics["analysis2_metrics"]["diffusivities"]))
+    generation_params_merge["Dm"] = list(map(lambda x: x*1e-12,diffusivities_flatten))
     nm_initial = metrics["analysis1_metrics"]["num_spots_each_frame"][0]
     startprob = metrics["analysis2_metrics"]["startprob"]
-    for i in range(len(startprob)):
-        generation_params_merge["Nm"][i] = int(nm_initial * startprob[i])
+    #for i in range(len(startprob)):
+    #    generation_params_merge["Nm"][i] = int(nm_initial * startprob[i])
+    generation_params_merge["Nm"] = list(map(lambda x: int(nm_initial * x), startprob))
 
-    print("Re-Generate with optimized parameter with {}".format(generation_params_merge))
+    print("Re-Generate with optimized parameter as follows.")
+    print(generation_params_merge)
+
+    print("cf. Default generation parameter")
+    print(generation_params)
+
     generation_output2 = Path("./re-generation/")
     if not generation_output2.exists():
         generation_output2.mkdir(parents = True, exist_ok = True)
