@@ -1,0 +1,12 @@
+mlflow
+hmmlearn
+hydra-core
+scikit-image
+plotly
+kaleido
+azure-storage-blob
+optuna
+protobuf
+optuna-dashboard
+hydra-optuna-sweeper
+git+https://github.com/ecell/scopyon@master
