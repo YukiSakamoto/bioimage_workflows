@@ -14,7 +14,7 @@ generation_params = {
     "seed": 123,
     "interval": 0.033,
     "num_samples": 1,
-    "num_frames": 10,   # 1
+    "num_frames": 1,
     "exposure_time": 0.033,
     "Nm": [100, 100, 100],
     "Dm": [0.222e-12, 0.032e-12, 0.008e-12],    # m^2 / sec
@@ -123,8 +123,8 @@ def optimize_single_image(image_dir: Path, analysis_param: dict, n_trials: int =
 def run_flow():
     #image_dir = generate_image(generation_params)
     image_dir = Path("./save_image_dir/")
-    #generate_image(generation_params, image_dir)
-    train_image_dir, test_image_dir = split_image_set(image_dir, 0.7)
+    generate_image(generation_params, image_dir)
+    #train_image_dir, test_image_dir = split_image_set(image_dir, 0.7)
     params = optimize_single_image(train_image_dir,analysis_params, 2)
     
     print(params)
