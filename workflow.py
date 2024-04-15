@@ -8,12 +8,13 @@ from prefect import task, flow
 from prefect.runtime import flow_run, task_run
 import os, shutil
 import optuna
+import random
 
 generation_params = {
     "seed": 123,
     "interval": 0.033,
     "num_samples": 1,
-    "num_frames": 1,
+    "num_frames": 10,   # 1
     "exposure_time": 0.033,
     "Nm": [100, 100, 100],
     "Dm": [0.222e-12, 0.032e-12, 0.008e-12],    # m^2 / sec
@@ -53,12 +54,36 @@ def generate_task_name():
     return f"{flow_name}_interval-{interval}_Nm-{Nm}"
 
 @task(name = "generate_image",task_run_name = generate_task_name)
-def generate_image(param: dict):
-    image_dir = Path("./save_image_dir/")
+def generate_image(param: dict, image_dir: Path):
     os.makedirs(image_dir, exist_ok = True)
-    artifacts, metrics = generation1([], image_dir, param)
+    artifacts, metrics = user_functions.generation1([], image_dir, param)
     return image_dir
 
+@task(name = "split_image_set", task_run_name = "split_{image_dir}")
+def split_image_set(image_dir: Path, train_data_ratio: float = 0.7):
+    image_list = sorted(image_dir.glob('image*.png'))
+    num_images = len(image_list)
+    
+    # Sampling
+    train_data_num = int(num_images * train_data_ratio)
+    train_images = random.sample(image_list, train_data_num)
+
+    # Make Directories
+    train_image_dir = image_dir / "train_images"
+    test_image_dir = image_dir / "test_images"
+    os.makedirs(train_image_dir, exist_ok = True)
+    os.makedirs(test_image_dir, exist_ok = True)
+
+    # Copy
+    train_images_set = set(train_images)
+    for image_path in image_list:
+        destination_path = None
+        if image_path in train_images_set:
+            destination_path = train_image_dir / image_path.name
+        else:
+            destination_path = test_image_dir / image_path.name
+        shutil.copy(image_path, destination_path)
+    return (train_image_dir, test_image_dir)
 
 @task(name = "opt_single_image", )
 def optimize_single_image(image_dir: Path, analysis_param: dict, n_trials: int = 10):
@@ -98,8 +123,17 @@ def optimize_single_image(image_dir: Path, analysis_param: dict, n_trials: int =
 def run_flow():
     #image_dir = generate_image(generation_params)
     image_dir = Path("./save_image_dir/")
-    params = optimize_single_image(image_dir,analysis_params, 2)
+    #generate_image(generation_params, image_dir)
+    train_image_dir, test_image_dir = split_image_set(image_dir, 0.7)
+    params = optimize_single_image(train_image_dir,analysis_params, 2)
+    
     print(params)
+    regenerate_image_dir = Path("./regenerate_image_dir/")
+
+    #merge parameters
+    generation_param2 = generation_params.copy()
+    generation_param2.update(params)
+    generate_image(generation_param2, regenerate_image_dir)
 
 if __name__ == "__main__":
     run_flow()
