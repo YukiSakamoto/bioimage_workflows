@@ -102,15 +102,19 @@ def generate_multiple_image_series(param: dict, image_root_dir: Path, num_series
     return ret
 
 @task(name = "evaluation_single_image",)
-def optimzie_single_image(image_dir_list: list[Path], analysis_param: dict):
+def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
+    mean_norm_sum = 0.0
     for image_dir in image_dir_list:
         analysis1_dir = Path("./evalution_dir")
         if os.path.isdir(analysis1_dir):
             shutil.rmtree(analysis1_dir)
         os.makedirs(analysis1_dir, exist_ok = True)
+
+        trial_analysis_params = analysis_params.copy()
+        trial_analysis_params.update(optimized_params)
         a, analysis1_metrics = user_functions.analysis1([image_dir], analysis1_dir, trial_analysis_params)
         
-        # 3. Do Evaluation
+        # Do Evaluation
         evaluation1_dir = Path("./evaluation1_dir/")
         if os.path.isdir(evaluation1_dir):
             shutil.rmtree(evaluation1_dir)
@@ -144,14 +148,14 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
         
         # 2. Do Analysis1
         for image_dir in image_dir_list:
-            analysis1_dir = Path("./analysis1_dir/")
+            analysis1_dir = Path("./opt_analysis1_dir/")
             if os.path.isdir(analysis1_dir):
                 shutil.rmtree(analysis1_dir)
             os.makedirs(analysis1_dir, exist_ok = True)
             a, analysis1_metrics = user_functions.analysis1([image_dir], analysis1_dir, trial_analysis_params)
             
             # 3. Do Evaluation
-            evaluation1_dir = Path("./evaluation1_dir/")
+            evaluation1_dir = Path("./opt_evaluation1_dir/")
             if os.path.isdir(evaluation1_dir):
                 shutil.rmtree(evaluation1_dir)
             os.makedirs(evaluation1_dir, exist_ok = True)
@@ -190,14 +194,17 @@ def run_flow():
         d = generate_image_series(param, image_dir/"test"/f"series_{i}")
         test_image_dir_list.append(d)
 
-    params = optimize_single_image(train_image_dir_list,analysis_params, 10)
-    print(params)
+    optimized_params = optimize_single_image(train_image_dir_list,analysis_params, 2)
     
+    # Evaluation
+    eval_result = evaluation_single_image(test_image_dir_list, optimized_params)
+    print(eval_result)
+
     regenerate_image_dir = Path("./regenerate_image_dir/")
 
     #merge parameters
     generation_param2 = generation_params.copy()
-    generation_param2.update(params)
+    generation_param2.update(optimized_params)
     generate_image_series(generation_param2, regenerate_image_dir)
 
 if __name__ == "__main__":
