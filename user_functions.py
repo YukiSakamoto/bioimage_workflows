@@ -353,13 +353,15 @@ def analysis2(inputs: Tuple[PathLike, ...], spots_path: PathLike, output: PathLi
     #XXX: THERE
     #return {"artifacts": artifacts.absolute().as_uri()}
 
-    numpy.save(str(artifacts / "transmat.npy"), P)
+    #numpy.save(str(artifacts / "transmat.npy"), P) # XXX Variable Names (transmat and state_transition_matrix) are very confusing !!!
+    numpy.save(str(artifacts / "transmat.npy"), k)
     metrics = {
             'observation_count': len(lengths), 
             'observation_length': sum(lengths), 
             "diffusivities": model.diffusivities_,
             "D": pixel_length ** 2 * model.diffusivities_ / interval / 1e-12,
             "startprob" : model.startprob_,
+            "transmat": model.transmat_,
             "state_transition_matrix": k,
     }
     return artifacts.absolute().as_uri(), metrics
