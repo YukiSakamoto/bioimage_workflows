@@ -101,7 +101,7 @@ def generate_multiple_image_series(param: dict, image_root_dir: Path, num_series
         print("generate {} in {} done".format(i, image_dir), file = sys.stderr)
     return ret
 
-@task(name = "evaluation_single_image",)
+@task(name = "evaluation_single_image", log_prints = True)
 def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
     mean_norm_sum = 0.0
     for image_dir in image_dir_list:
@@ -129,10 +129,12 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
         mean_norm_sum += mean_norm1
 
     n_images = len(image_dir_list)
-    return mean_norm_sum / n_images
+    result = mean_norm_sum / n_images
+    print("Evaluation: mean_norm_sum/n_images = {}".format(mean_norm_sum / n_images), file=sys.stderr)
+    return result
 
 
-@task(name = "opt_single_image", )
+@task(name = "opt_single_image", log_prints = True)
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
@@ -168,10 +170,13 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
             mean_norm_sum += mean_norm1
 
         n_images = len(image_dir_list)
+        print("Trial #{}: mean_norm_sum/n_images = {}".format(trial.number, mean_norm_sum / n_images), file=sys.stderr)
         return mean_norm_sum / n_images
 
     study = optuna.create_study(load_if_exists=True, sampler=optuna.samplers.CmaEsSampler())
     study.optimize(_objective, n_trials = n_trials)
+    print("best params: {}".format(study.best_params), file = sys.stderr)
+    print("best objective: {}".format(study.best_value), file = sys.stderr)
     return study.best_params
 
 @flow
@@ -198,7 +203,7 @@ def run_flow():
     
     # Evaluation
     eval_result = evaluation_single_image(test_image_dir_list, optimized_params)
-    print(eval_result)
+    print("Evaluation Result: {}".format(eval_result) )
 
     regenerate_image_dir = Path("./regenerate_image_dir/")
 
