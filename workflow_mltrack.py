@@ -141,7 +141,9 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
 
-    #@MLflowCallback(metric_name = "optimize_single_image").track_in_mlflow()
+    mlflc = MLflowCallback(metric_name = "optimize_single_image")
+
+    @mlflc.track_in_mlflow()
     def _objective(trial):
         # 1. Prepare the Parameter
         trial_analysis_params = analysis_params.copy()
@@ -177,8 +179,8 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
         print("Trial #{}: mean_norm_sum/n_images = {}".format(trial.number, mean_norm_sum / n_images), file=sys.stderr)
         return mean_norm_sum / n_images
 
-    study = optuna.create_study(load_if_exists=True, sampler=optuna.samplers.CmaEsSampler())
-    study.optimize(_objective, n_trials = n_trials, callbacks = [MLflowCallback(metric_name = "optimize_single_image")])
+    study = optuna.create_study(load_if_exists=True, sampler=optuna.samplers.CmaEsSampler(), study_name = "optimize_single_image")
+    study.optimize(_objective, n_trials = n_trials, callbacks = [mlflc])
     print("best params: {}".format(study.best_params), file = sys.stderr)
     print("best objective: {}".format(study.best_value), file = sys.stderr)
     return study.best_params
@@ -203,7 +205,7 @@ def run_flow():
         d = generate_image_series(param, image_dir/"test"/f"series_{i}")
         test_image_dir_list.append(d)
 
-    optimized_params = optimize_single_image(train_image_dir_list,analysis_params, 2)
+    optimized_params = optimize_single_image(train_image_dir_list,analysis_params, 4)
     
     # Evaluation
     eval_result = evaluation_single_image(test_image_dir_list, optimized_params)
