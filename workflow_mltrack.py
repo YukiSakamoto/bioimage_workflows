@@ -60,21 +60,27 @@ def generate_task_name():
 
 @task(name = "generate_image_series",task_run_name = generate_task_name)
 def generate_image_series(param: dict, image_dir: Path):
-    # Check if the image has already generated with same parameter
-    json_path = image_dir / 'params.json'
-    if os.path.exists(image_dir) and os.path.exists(json_path):
-        with open(json_path, 'r', encoding = 'utf-8') as file:
-            load_param = json.load(file)
-            if load_param == param:
-                print("generate image in {} skipped, since already generated with same parameters".format(image_dir), file = sys.stderr)
-                return image_dir
+    mlflow.set_experiment("generate_image_series")
+    with mlflow.start_run():
+        mlflow.log_param("parameter", param)
 
-    print("Will generate image in {}".format(image_dir), file = sys.stderr)
-    os.makedirs(image_dir, exist_ok = True)
-    artifacts, metrics = user_functions.generation1([], image_dir, param)
-    with open(json_path, 'w', encoding = 'utf-8') as file:
-        json.dump(param, file, ensure_ascii = False, indent = 4)
-    print("generate image in {} done".format(image_dir), file = sys.stderr)
+        # Check if the image has already generated with same parameter
+        json_path = image_dir / 'params.json'
+        if os.path.exists(image_dir) and os.path.exists(json_path):
+            with open(json_path, 'r', encoding = 'utf-8') as file:
+                load_param = json.load(file)
+                if load_param == param:
+                    print("generate image in {} skipped, since already generated with same parameters".format(image_dir), file = sys.stderr)
+                    return image_dir
+
+        print("Will generate image in {}".format(image_dir), file = sys.stderr)
+        os.makedirs(image_dir, exist_ok = True)
+        artifacts, metrics = user_functions.generation1([], image_dir, param)
+        with open(json_path, 'w', encoding = 'utf-8') as file:
+            json.dump(param, file, ensure_ascii = False, indent = 4)
+        print("generate image in {} done".format(image_dir), file = sys.stderr)
+        mlflow.log_artifact(jsonpath)
+        mlflow.log_artifact(artifacts)
     return image_dir
 
 @task(name = "generate_multiple_image_series", task_run_name = generate_task_name)
