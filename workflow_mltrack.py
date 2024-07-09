@@ -2,7 +2,9 @@ from pathlib import Path
 import user_functions
 import pathlib
 import mlflow
-from optuna.integration.mlflow import MLflowCallback
+#from optuna.integration.mlflow import MLflowCallback
+from optuna.integration import MLflowCallback
+import task_mlflow_wrapper
 
 from prefect import task, flow
 from prefect.runtime import flow_run, task_run
@@ -58,29 +60,25 @@ def generate_task_name():
     Nm = parameters['param']['Nm']
     return f"{flow_name}_interval-{interval}_Nm-{Nm}"
 
-@task(name = "generate_image_series",task_run_name = generate_task_name)
+#@task(name = "generate_image_series",task_run_name = generate_task_name)
+@task_mlflow_wrapper.task_with_mlflow(arg_name_artifact_dir_after_exec = "image_dir")
 def generate_image_series(param: dict, image_dir: Path):
-    mlflow.set_experiment("generate_image_series")
-    with mlflow.start_run():
-        mlflow.log_param("parameter", param)
 
-        # Check if the image has already generated with same parameter
-        json_path = image_dir / 'params.json'
-        if os.path.exists(image_dir) and os.path.exists(json_path):
-            with open(json_path, 'r', encoding = 'utf-8') as file:
-                load_param = json.load(file)
-                if load_param == param:
-                    print("generate image in {} skipped, since already generated with same parameters".format(image_dir), file = sys.stderr)
-                    return image_dir
+    # Check if the image has already generated with same parameter
+    json_path = image_dir / 'params.json'
+    if os.path.exists(image_dir) and os.path.exists(json_path):
+        with open(json_path, 'r', encoding = 'utf-8') as file:
+            load_param = json.load(file)
+            if load_param == param:
+                print("generate image in {} skipped, since already generated with same parameters".format(image_dir), file = sys.stderr)
+                return image_dir
 
-        print("Will generate image in {}".format(image_dir), file = sys.stderr)
-        os.makedirs(image_dir, exist_ok = True)
-        artifacts, metrics = user_functions.generation1([], image_dir, param)
-        with open(json_path, 'w', encoding = 'utf-8') as file:
-            json.dump(param, file, ensure_ascii = False, indent = 4)
-        print("generate image in {} done".format(image_dir), file = sys.stderr)
-        mlflow.log_artifact(jsonpath)
-        mlflow.log_artifact(artifacts)
+    print("Will generate image in {}".format(image_dir), file = sys.stderr)
+    os.makedirs(image_dir, exist_ok = True)
+    artifacts, metrics = user_functions.generation1([], image_dir, param)
+    with open(json_path, 'w', encoding = 'utf-8') as file:
+        json.dump(param, file, ensure_ascii = False, indent = 4)
+    print("generate image in {} done".format(image_dir), file = sys.stderr)
     return image_dir
 
 @task(name = "generate_multiple_image_series", task_run_name = generate_task_name)
@@ -109,7 +107,8 @@ def generate_multiple_image_series(param: dict, image_root_dir: Path, num_series
         print("generate {} in {} done".format(i, image_dir), file = sys.stderr)
     return ret
 
-@task(name = "evaluation_single_image", log_prints = True)
+#@task(name = "evaluation_single_image", log_prints = True)
+@task_mlflow_wrapper.task_with_mlflow()
 def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
     mean_norm_sum = 0.0
     for image_dir in image_dir_list:
@@ -142,12 +141,13 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
     return result
 
 
-@task(name = "opt_single_image", log_prints = True)
+#@task(name = "opt_single_image", log_prints = True)
+@task_mlflow_wrapper.task_with_mlflow()
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
 
-    mlflc = MLflowCallback(metric_name = "optimize_single_image")
+    mlflc = MLflowCallback(metric_name = "optimize_single_image", mlflow_kwargs={"nested": True})
 
     @mlflc.track_in_mlflow()
     def _objective(trial):
