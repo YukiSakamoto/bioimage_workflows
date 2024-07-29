@@ -108,7 +108,7 @@ def generate_multiple_image_series(param: dict, image_root_dir: Path, num_series
     return ret
 
 #@task(name = "evaluation_single_image", log_prints = True)
-@task_mlflow_wrapper.task_with_mlflow()
+@task_mlflow_wrapper.task_with_mlflow(arg_name_artifact_dir_before_exec="image_dir_list")
 def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
     mean_norm_sum = 0.0
     for image_dir in image_dir_list:
@@ -142,7 +142,7 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 
 
 #@task(name = "opt_single_image", log_prints = True)
-@task_mlflow_wrapper.task_with_mlflow()
+@task_mlflow_wrapper.task_with_mlflow(arg_name_artifact_dir_before_exec="image_dir_list")
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')

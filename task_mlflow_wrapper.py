@@ -8,6 +8,8 @@ import inspect
 import json
 from pathlib import PosixPath, Path
 
+mlflow_server_uri = "10.5.1.218:7777"
+
 class CustomEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, PosixPath):
@@ -54,14 +56,18 @@ def task_with_mlflow(mlflow_server_uri = "10.5.1.218:7777", artifact_dir = None,
                 for name, value in bound_args.arguments.items():
                     mlflow.log_param(name, value)
 
+                #----------------------------------------
+                # MLFlow: Save the Artifacts before exec. 
+                #----------------------------------------
                 if arg_name_artifact_dir_before_exec != None:
-                    #if not isinstance(arg_name_artifact_dir_before_exec, str):
-                    #    raise
                     if arg_name_artifact_dir_before_exec in bound_args.arguments:
                         artifact_dir = bound_args.arguments[arg_name_artifact_dir_before_exec]
                         if artifact_dir != None:
-                            mlflow.log_artifacts(str(artifact_dir), artifact_path = "artifacts_before_exec")
-                            print("save1 done")
+                            if isinstance(artifact_dir, list) or isinstance(artifact_dir, set):
+                                for index, d in enumerate(artifact_dir):
+                                    mlflow.log_artifacts(str(d), artifact_path = "artifacts_before_exec/{}".format(index))
+                            else:
+                                mlflow.log_artifacts(str(artifact_dir), artifact_path = "artifacts_before_exec")
 
                 #----------------------------------------
                 # Execution
@@ -78,15 +84,18 @@ def task_with_mlflow(mlflow_server_uri = "10.5.1.218:7777", artifact_dir = None,
                 # MLFlow: save all artifact
                 #----------------------------------------
                 if arg_name_artifact_dir_after_exec != None:
-                    #if not isinstance(arg_name_artifact_dir_after_exec, str):
-                    #    raise
                     if arg_name_artifact_dir_after_exec in bound_args.arguments:
                         artifact_dir = bound_args.arguments[arg_name_artifact_dir_after_exec]
                         if artifact_dir != None:
-                            mlflow.log_artifacts(str(artifact_dir), artifact_path = "artifacts_after_exec")
-                            print("save2 done")
-                #if artifact_dir != None:
-                #    mlflow.log_artifacts(artifact_dir, artifact_path = "artifacts")
+                            if isinstance(artifact_dir, list) or isinstance(artifact_dir, set):
+                                for index, d in enumerate(artifact_dir):
+                                    mlflow.log_artifacts(str(artifact_dir), artifact_path = "artifacts_after_exec/{}".format(index))
+                            else:
+                                mlflow.log_artifacts(str(artifact_dir), artifact_path = "artifacts_after_exec")
+
+                #----------------------------------------
+                # MLFlow: save inputs parameter and return value
+                #----------------------------------------
                 task_desc = dict()
                 task_desc["inputs"] = bound_args.arguments
                 task_desc["output"] = ret_value
@@ -98,22 +107,6 @@ def task_with_mlflow(mlflow_server_uri = "10.5.1.218:7777", artifact_dir = None,
             return ret_value 
         return _wrapper
     return task_with_mlflow_wrapper
-
-#def for_link(f):
-#    @functools.wrapper(f)
-#    def wrapper(*args, **kwargs):
-#        info = kwargs.pop("info")
-#        link = f"fuga//{info.run_id}"
-#        create_link_artifact(link)
-#        return f(*args, **kwargs)
-#    return wrapper
-#
-#@mlflow(artifacts_dir)
-#@for_link
-#def str_twice(s):
-#    return s * s
-#str_twice(s, link="fuga")
-
 
 @task_with_mlflow(arg_name_artifact_dir_before_exec = "artifact_dir", arg_name_artifact_dir_after_exec = "artifact_dir")
 def str_twice(s, artifact_dir = None):
@@ -141,4 +134,5 @@ def my_test(a = "hello", b = "byebye"):
     ret = str_add(aa,bb)
     print(ret)
 
-my_test()
+if __name__ == '__main__':
+    my_test()
