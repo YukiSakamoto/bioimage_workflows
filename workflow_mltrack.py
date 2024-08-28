@@ -6,8 +6,7 @@ import mlflow
 from optuna.integration import MLflowCallback
 import task_mlflow_wrapper
 
-from prefect import task, flow
-from prefect.runtime import flow_run, task_run
+#from prefect.runtime import flow_run, task_run
 import os, shutil
 import optuna
 import random
@@ -81,7 +80,8 @@ def generate_image_series(param: dict, image_dir: Path):
     print("generate image in {} done".format(image_dir), file = sys.stderr)
     return image_dir
 
-@task(name = "generate_multiple_image_series", task_run_name = generate_task_name)
+#@task(name = "generate_multiple_image_series", task_run_name = generate_task_name)
+@task_mlflow_wrapper.task_with_mlflow()
 def generate_multiple_image_series(param: dict, image_root_dir: Path, num_series = 10):
     ret = []
     os.makedirs(image_root_dir, exist_ok = True)
@@ -142,12 +142,17 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 
 
 #@task(name = "opt_single_image", log_prints = True)
-@task_mlflow_wrapper.task_with_mlflow(arg_name_artifact_dir_before_exec="image_dir_list")
+@task_mlflow_wrapper.task_with_mlflow(
+        arg_name_artifact_dir_before_exec="image_dir_list", 
+        pathobj_log_artifacts = True, 
+        dirname_of_artifacts_after_exec="ok_after", 
+        dirname_of_artifacts_before_exec="ok_before"
+)
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
 
-    mlflc = MLflowCallback(metric_name = "optimize_single_image", mlflow_kwargs={"nested": True})
+    mlflc = MLflowCallback(tracking_uri = "10.5.1.218", metric_name = "optimize_single_image", mlflow_kwargs={"nested": True})
 
     @mlflc.track_in_mlflow()
     def _objective(trial):
@@ -191,9 +196,12 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
     print("best objective: {}".format(study.best_value), file = sys.stderr)
     return study.best_params
 
-@flow
+@task_mlflow_wrapper.flow
 def run_flow():
     image_dir = Path("./save_image_dir_aaa/")
+    task_mlflow_wrapper.set_mlflow_server_uri("10.5.1.218")
+    task_mlflow_wrapper.set_mlflow_server_port("7777")
+    print(task_mlflow_wrapper.get_mlflow_server_uri())
 
     #test_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "test", 3)
     #train_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "train", 7)
