@@ -1,7 +1,7 @@
 from pathlib import Path
 import user_functions
 import pathlib
-import mlflow
+#import mlflow
 #from optuna.integration.mlflow import MLflowCallback
 from optuna.integration import MLflowCallback
 import task_mlflow_wrapper
@@ -143,10 +143,10 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 
 #@task(name = "opt_single_image", log_prints = True)
 @task_mlflow_wrapper.task_with_mlflow(
-        arg_name_artifact_dir_before_exec="image_dir_list", 
-        pathobj_log_artifacts = True, 
-        dirname_of_artifacts_after_exec="ok_after", 
-        dirname_of_artifacts_before_exec="ok_before"
+        #arg_name_artifact_dir_before_exec="image_dir_list", 
+        #pathobj_log_artifacts = True, 
+        #dirname_of_artifacts_after_exec="ok_after", 
+        #dirname_of_artifacts_before_exec="ok_before"
 )
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
@@ -158,9 +158,9 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
     def _objective(trial):
         # 1. Prepare the Parameter
         trial_analysis_params = analysis_params.copy()
-        trial_analysis_params["threshold"] = trial.suggest_float("threshold", 10, 100)
-        trial_analysis_params["overlap"] = trial.suggest_float("overlap", 0.1, 1.0)
-        trial_analysis_params["max_sigma"] = trial.suggest_float("max_sigma", 4, 10)
+        trial_analysis_params["threshold"] = trial.suggest_float("threshold", 48, 52)
+        trial_analysis_params["overlap"] = trial.suggest_float("overlap", 0.4, 0.6)
+        trial_analysis_params["max_sigma"] = trial.suggest_float("max_sigma", 3, 5)
         trial_analysis_params["min_sigma"] = trial.suggest_float("min_sigma", 0, 2)
 
         mean_norm_sum = 0.
@@ -219,7 +219,7 @@ def run_flow():
         d = generate_image_series(param, image_dir/"test"/f"series_{i}")
         test_image_dir_list.append(d)
 
-    optimized_params = optimize_single_image(train_image_dir_list,analysis_params, 4)
+    optimized_params = optimize_single_image(train_image_dir_list,analysis_params, 1)
     
     # Evaluation
     eval_result = evaluation_single_image(test_image_dir_list, optimized_params)
