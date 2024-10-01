@@ -1,9 +1,9 @@
 from pathlib import Path
 import user_functions
 import pathlib
-#import mlflow
-#from optuna.integration.mlflow import MLflowCallback
-from optuna.integration import MLflowCallback
+import mlflow
+from optuna.integration.mlflow import MLflowCallback
+#from optuna.integration import MLflowCallback
 import task_mlflow_wrapper
 
 #from prefect.runtime import flow_run, task_run
@@ -147,14 +147,17 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
         #pathobj_log_artifacts = True, 
         #dirname_of_artifacts_after_exec="ok_after", 
         #dirname_of_artifacts_before_exec="ok_before"
+        mlflow_server_uri="10.5.1.218:7777"
 )
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
 
-    mlflc = MLflowCallback(tracking_uri = "10.5.1.218", metric_name = "optimize_single_image", mlflow_kwargs={"nested": True})
+    mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", nest_trials=True)
+    print('-----')
+    print(mlflow.get_tracking_uri())
 
-    @mlflc.track_in_mlflow()
+    #@mlflc.track_in_mlflow()
     def _objective(trial):
         # 1. Prepare the Parameter
         trial_analysis_params = analysis_params.copy()
