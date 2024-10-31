@@ -153,7 +153,7 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
 
-    mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", nest_trials=True)
+    mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
     print('-----')
     print(mlflow.get_tracking_uri())
 
