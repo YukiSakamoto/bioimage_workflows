@@ -11,3 +11,4 @@ optuna-dashboard
 hydra-optuna-sweeper
 git+https://github.com/ecell/scopyon@master
 optuna-integration
+typeguard
