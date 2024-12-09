@@ -20,6 +20,11 @@ pip install optuna==3.0.5 protobuf==3.20.3 optuna-dashboard==0.8.1
 pip install hydra-optuna-sweeper==1.2.0
 ```
 
+Sakamoto
+```
+pip install -no-deps -r requirements.lock2
+```
+
 # Running mlflow tracking server
 
 ## Command Line

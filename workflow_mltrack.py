@@ -147,13 +147,13 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
         #pathobj_log_artifacts = True, 
         #dirname_of_artifacts_after_exec="ok_after", 
         #dirname_of_artifacts_before_exec="ok_before"
-        mlflow_server_uri="10.5.1.218:7777"
+        #mlflow_server_uri="10.5.1.218:7777"
 )
 @typechecked
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
-
-    mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
+    #mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
+    mlflc = MLflowCallback(tracking_uri = "0.0.0.0:7777", metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
     print('-----')
     print(mlflow.get_tracking_uri())
 
@@ -202,9 +202,9 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
 @task_mlflow_wrapper.flow
 def run_flow():
     image_dir = Path("./save_image_dir_aaa/")
-    task_mlflow_wrapper.set_mlflow_server_uri("10.5.1.218")
+    task_mlflow_wrapper.set_mlflow_server_uri("0.0.0.0")
     task_mlflow_wrapper.set_mlflow_server_port("7777")
-    print(task_mlflow_wrapper.get_mlflow_server_uri())
+    print("{}:{}".format(task_mlflow_wrapper.get_mlflow_server_uri(), task_mlflow_wrapper.get_mlflow_server_port() ))
 
     #test_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "test", 3)
     #train_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "train", 7)
