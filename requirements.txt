@@ -1,6 +1,5 @@
 mlflow
 hmmlearn==0.2.6
-hydra-core
 scikit-image
 plotly
 kaleido
@@ -8,7 +7,6 @@ azure-storage-blob
 optuna
 protobuf
 optuna-dashboard
-hydra-optuna-sweeper
 git+https://github.com/ecell/scopyon@master
 optuna-integration
 typeguard
