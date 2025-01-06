@@ -167,7 +167,6 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
         trial_analysis_params["min_sigma"] = trial.suggest_float("min_sigma", 0, 2)
 
         mean_norm_sum = 0.
-        
         # 2. Do Analysis1
         for image_dir in image_dir_list:
             analysis1_dir = Path("./opt_analysis1_dir/")
@@ -198,6 +197,12 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
     print("best params: {}".format(study.best_params), file = sys.stderr)
     print("best objective: {}".format(study.best_value), file = sys.stderr)
     return study.best_params
+
+def optimize_multiple_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
+    analysis1_dir = Path("./opt_analysis1_dir/")
+    analysis2_output=Path('./outputs_analysis_run/')
+    _, metrics = user_functions.analysis2(image_dir_list, analysis1_dir, analysis2_output, analysis_param)
+    pass
 
 @task_mlflow_wrapper.flow
 def run_flow():
@@ -235,5 +240,39 @@ def run_flow():
     generation_param2.update(optimized_params)
     generate_image_series(generation_param2, regenerate_image_dir)
 
+@task_mlflow_wrapper.flow
+def run_flow2():
+    generation_params2 = {
+        "seed": 123,
+        "interval": 0.033,
+        "num_samples": 2,
+        "num_frames": 5,
+        "exposure_time": 0.033,
+        "Nm": [100, 100, 100],
+        "Dm": [0.222e-12, 0.032e-12, 0.008e-12],    # m^2 / sec
+        "transmat": [
+            [0.0, 0.5, 0.0],
+            [0.5, 0.0, 0.2],
+            [0.0, 1.0, 0.0]]
+    }
+    image_dir = Path("./save_image_dir_flow2/")
+    task_mlflow_wrapper.set_mlflow_server_uri("0.0.0.0")
+    task_mlflow_wrapper.set_mlflow_server_port("7777")
+    print("{}:{}".format(task_mlflow_wrapper.get_mlflow_server_uri(), task_mlflow_wrapper.get_mlflow_server_port() ))
+    test_image_dir_list = []
+    train_image_dir_list = []
+    #for i in range(7):
+    #    param = generation_params.copy()
+    #    param['seed'] = i
+    #    d = generate_image_series(param, image_dir/"train"/f"series_{i}")
+    #    train_image_dir_list.append(d)
+    d = generate_image_series(generation_params2, image_dir / "train")
+    train_image_dir_list.append(d)
+    optimize_multiple_image(train_image_dir_list, analysis_params)
+
+    optimized_params = None
+
 if __name__ == "__main__":
     run_flow()
+    print('enter 2')
+    run_flow2()
