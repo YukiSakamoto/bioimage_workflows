@@ -153,7 +153,8 @@ def evaluation_single_image(image_dir_list: list[Path], optimized_params: dict):
 def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     artifact_dir2 = Path('hoge')
     #mlflc = MLflowCallback(tracking_uri = mlflow.get_tracking_uri(), metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
-    mlflc = MLflowCallback(tracking_uri = "0.0.0.0:7777", metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
+    mlflc = MLflowCallback(tracking_uri = "http://0.0.0.0:7777", metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
+    #mlflc = MLflowCallback(metric_name = "optimize_single_image_nested", mlflow_kwargs={"nested":True})
     print('-----')
     print(mlflow.get_tracking_uri())
 
@@ -207,9 +208,7 @@ def optimize_multiple_image(image_dir_list: list[Path], analysis_param: dict, n_
 @task_mlflow_wrapper.flow
 def run_flow():
     image_dir = Path("./save_image_dir_aaa/")
-    task_mlflow_wrapper.set_mlflow_server_uri("0.0.0.0")
-    task_mlflow_wrapper.set_mlflow_server_port("7777")
-    print("{}:{}".format(task_mlflow_wrapper.get_mlflow_server_uri(), task_mlflow_wrapper.get_mlflow_server_port() ))
+    task_mlflow_wrapper.set_tracking_uri("http://0.0.0.0:7777")
 
     #test_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "test", 3)
     #train_image_dir_list = generate_multiple_image_series(generation_params, image_dir / "train", 7)
@@ -255,10 +254,8 @@ def run_flow2():
             [0.5, 0.0, 0.2],
             [0.0, 1.0, 0.0]]
     }
+    task_mlflow_wrapper.set_tracking_uri("http://0.0.0.0:7777")
     image_dir = Path("./save_image_dir_flow2/")
-    task_mlflow_wrapper.set_mlflow_server_uri("0.0.0.0")
-    task_mlflow_wrapper.set_mlflow_server_port("7777")
-    print("{}:{}".format(task_mlflow_wrapper.get_mlflow_server_uri(), task_mlflow_wrapper.get_mlflow_server_port() ))
     test_image_dir_list = []
     train_image_dir_list = []
     #for i in range(7):
@@ -275,4 +272,4 @@ def run_flow2():
 if __name__ == "__main__":
     run_flow()
     print('enter 2')
-    run_flow2()
+    #run_flow2()
