@@ -202,6 +202,7 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
 def optimize_multiple_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
     analysis1_dir = Path("./opt_analysis1_dir/")
     analysis2_output=Path('./outputs_analysis_run/')
+    import ipdb; ipdb.set_trace()
     _, metrics = user_functions.analysis2(image_dir_list, analysis1_dir, analysis2_output, analysis_param)
     pass
 
@@ -265,11 +266,15 @@ def run_flow2():
     #    train_image_dir_list.append(d)
     d = generate_image_series(generation_params2, image_dir / "train")
     train_image_dir_list.append(d)
+    analysis_params.update({
+        'threshold': 50.57495467209759, 'overlap': 0.41325567681517517, 
+        'max_sigma': 3.5512390963628744, 'min_sigma': 0.710349746914307
+    })
     optimize_multiple_image(train_image_dir_list, analysis_params)
 
     optimized_params = None
 
 if __name__ == "__main__":
-    run_flow()
+    #run_flow()
     print('enter 2')
-    #run_flow2()
+    run_flow2()
