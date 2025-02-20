@@ -199,12 +199,32 @@ def optimize_single_image(image_dir_list: list[Path], analysis_param: dict, n_tr
     print("best objective: {}".format(study.best_value), file = sys.stderr)
     return study.best_params
 
-def optimize_multiple_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10):
+@task_mlflow_wrapper.task_with_mlflow(arg_name_artifact_dir_after_exec = "analysis2_output")
+def optimize_multiple_image(image_dir_list: list[Path], analysis_param: dict, n_trials: int = 10, analysis2_output = Path('./outputs_analysis_run/')):
     analysis1_dir = Path("./opt_analysis1_dir/")
-    analysis2_output=Path('./outputs_analysis_run/')
-    import ipdb; ipdb.set_trace()
-    _, metrics = user_functions.analysis2(image_dir_list, analysis1_dir, analysis2_output, analysis_param)
-    pass
+    _, analysis1_metrics = user_functions.analysis1(image_dir_list, analysis1_dir, analysis_param)
+    #analysis2_output=Path('./outputs_analysis_run/')
+    #_, metrics = user_functions.analysis2(image_dir_list, analysis1_dir, analysis2_output, analysis_param)
+    def _objective2(trial):
+        log_dict = {}
+        analysis_param["cutoff_distance"] = trial.suggest_float("cutoff_distance", 1, 10)
+        analysis2_output_dir = analysis2_output / str(trial.number) / "analysis2"
+        analysis2_output_dir.mkdir(parents = True, exist_ok = True)
+        analysis2_artifacts, analysis2_metrics = user_functions.analysis2(image_dir_list, analysis1_dir, analysis2_output_dir, analysis_param)
+        log_dict["analysis2_metrics"] = analysis2_metrics
+        evaluation2_output_dir = analysis2_output / str(trial.number) / "evaluation2"
+        evaluation2_output_dir.mkdir(parents = True, exist_ok = True)
+        _, evaluation2_metrics = user_functions.evaluation2([image_dir_list, analysis2_output_dir], evaluation2_output_dir, evaluation_params)
+        log_dict["evaluation2_metrics"] = evaluation2_metrics
+        return 0.0
+    mlflc = MLflowCallback(tracking_uri = "http://0.0.0.0:7777", 
+                           metric_name = "optimize_multiple_image_nested", 
+                           mlflow_kwargs = {"nested": True})
+    study = optuna.create_study(
+        load_if_exists=True, sampler = optuna.samplers.CmaEsSampler(), 
+        study_name = "optimize_multiple_image")
+    study.optimize(_objective2, n_trials = n_trials, callbacks = [mlflc])
+    return study.best_params
 
 @task_mlflow_wrapper.flow
 def run_flow():
@@ -270,7 +290,7 @@ def run_flow2():
         'threshold': 50.57495467209759, 'overlap': 0.41325567681517517, 
         'max_sigma': 3.5512390963628744, 'min_sigma': 0.710349746914307
     })
-    optimize_multiple_image(train_image_dir_list, analysis_params)
+    optimize_multiple_image(train_image_dir_list, analysis_params, n_trials=2)
 
     optimized_params = None
 
